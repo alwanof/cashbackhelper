@@ -131,7 +131,7 @@
         input.type = "number";
         input.id = `initial-${member.name}`;
         input.placeholder = member.name;
-        input.className = "border rounded px-3 py-2 w-full";
+        input.className = "border rounded px-3 py-2 w-full text-blue-700";
         input.onchange = (e) => {
           member.initialAmount =
             e.target.value === "" ? 0 : parseFloat(e.target.value);
