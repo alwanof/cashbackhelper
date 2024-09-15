@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Uplines CashBack Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: "class",
+      };
+    </script>
+  </head>
+  <body
+    class="bg-gray-100 dark:bg-gray-900 font-sans text-gray-900 dark:text-gray-100"
+  >
+    <div class="container mx-auto px-4 py-8">
+      <header class="text-center mb-12 flex justify-between items-center">
+        <div></div>
+        <div>
+          <img
+            src="/images/logo-up.png"
+            width="200"
+            alt="Uplines Logo"
+            class="mx-auto mb-4"
+          />
+          <h1
+            class="text-4xl font-bold text-indigo-600 dark:text-indigo-400 mb-2"
+          >
+            Uplines CashBack Calculator
+          </h1>
+          <p class="text-gray-600 dark:text-gray-400">
+            Calculate and visualize members CashBack Shares
+          </p>
+        </div>
+        <button
+          id="darkModeToggle"
+          class="bg-gray-200 dark:bg-gray-700 rounded-full p-2"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-6 w-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"
+            />
+          </svg>
+        </button>
+      </header>
+
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-2xl font-semibold mb-4">
+          Initial Amounts and Parent Selection
+        </h2>
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4"
+          id="initialAmounts"
+        ></div>
+      </div>
+
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-2xl font-semibold mb-4">Calculate Members CashBack</h2>
+        <div class="flex flex-wrap gap-4 mb-4">
+          <input
+            type="number"
+            id="invoiceAmount"
+            placeholder="Enter invoice amount"
+            class="border rounded px-3 py-2 w-full sm:w-auto text-blue-700"
+          />
+          <select
+            id="invoicedMember"
+            class="border rounded px-3 py-2 w-full sm:w-auto text-blue-700"
+          >
+            <option value="">Select invoiced member</option>
+          </select>
+          <input
+            type="number"
+            id="cashBackRate"
+            placeholder="Vendor Cash Back %"
+            value="10"
+            min="0"
+            max="100"
+            step="0.1"
+            class="border rounded px-3 py-2 w-full text-blue-700 sm:w-auto"
+          />
+          <button
+            onclick="calculateCommission()"
+            class="bg-indigo-600 text-white px-4 py-2 rounded hover:bg-indigo-700 transition-colors"
+          >
+            Calculate
+          </button>
+        </div>
+      </div>
+
+      <div
+        id="results"
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 mb-8 hidden"
+      ></div>
+
+      <div class="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6">
+        <h2 class="text-2xl font-semibold mb-4 text-center">
+          Member Hierarchy and Earnings
+        </h2>
+        <div id="treeChart" class="flex justify-center"></div>
+      </div>
+    </div>
+
+    <script>
+      const members = [];
+      for (let i = 1; i <= 15; i++) {
+        members.push({
+          name: `M${i}`,
+          parent: null,
+          initialAmount: 0,
+        });
+      }
+
+      // Create initial amount inputs and parent selectors
+      const initialAmountsDiv = document.getElementById("initialAmounts");
+      members.forEach((member) => {
+        const memberDiv = document.createElement("div");
+        memberDiv.className = "flex flex-col sm:flex-row items-center gap-2";
+
+        const input = document.createElement("input");
+        input.type = "number";
+        input.id = `initial-${member.name}`;
+        input.placeholder = member.name;
+        input.className = "border rounded px-3 py-2 w-full";
+        input.onchange = (e) => {
+          member.initialAmount =
+            e.target.value === "" ? 0 : parseFloat(e.target.value);
+        };
+
+        memberDiv.appendChild(input);
+
+        if (member.name !== "M1") {
+          const select = document.createElement("select");
+          select.id = `parent-${member.name}`;
+          select.className = "border rounded px-3 py-2 w-full text-blue-700";
+          select.onchange = (e) => {
+            member.parent = e.target.value;
+          };
+
+          const defaultOption = document.createElement("option");
+          defaultOption.value = "";
+          defaultOption.textContent = "Parent";
+          select.appendChild(defaultOption);
+
+          members.forEach((potentialParent) => {
+            if (potentialParent.name !== member.name) {
+              const option = document.createElement("option");
+              option.value = potentialParent.name;
+              option.textContent = potentialParent.name;
+              select.appendChild(option);
+
+              // Set default selected value to M(n-1)
+              if (
+                potentialParent.name ===
+                `M${parseInt(member.name.slice(1)) - 1}`
+              ) {
+                option.selected = true;
+                member.parent = potentialParent.name;
+              }
+            }
+          });
+
+          memberDiv.appendChild(select);
+        } else {
+          memberDiv.classList.add("font-bold");
+          const rootLabel = document.createElement("span");
+          rootLabel.textContent = "(Root)";
+          rootLabel.className = "text-sm text-gray-600 dark:text-gray-400";
+          memberDiv.appendChild(rootLabel);
+        }
+
+        initialAmountsDiv.appendChild(memberDiv);
+      });
+
+      // Populate the invoiced member select
+      const selectElement = document.getElementById("invoicedMember");
+      members.forEach((member) => {
+        const option = document.createElement("option");
+        option.value = member.name;
+        option.textContent = member.name;
+        selectElement.appendChild(option);
+      });
+
+      function calculateCommission() {
+        const invoiceAmount = parseFloat(
+          document.getElementById("invoiceAmount").value
+        );
+        const invoicedMember = document.getElementById("invoicedMember").value;
+        const cashBackRate =
+          parseFloat(document.getElementById("cashBackRate").value) / 100;
+
+        if (
+          isNaN(invoiceAmount) ||
+          invoiceAmount <= 0 ||
+          !invoicedMember ||
+          isNaN(cashBackRate)
+        ) {
+          alert(
+            "Please enter valid values for invoice amount, invoiced member, and cash back rate."
+          );
+          return;
+        }
+
+        // Update initial amounts and parents from inputs
+        members.forEach((member) => {
+          const inputAmount = document.getElementById(`initial-${member.name}`);
+          member.initialAmount =
+            inputAmount.value === "" ? 0 : parseFloat(inputAmount.value);
+          if (member.name !== "M1") {
+            const inputParent = document.getElementById(
+              `parent-${member.name}`
+            );
+            member.parent = inputParent.value;
+          }
+        });
+
+        const adminFeeRate = 0.05; // 5%
+        const memberShareRate = 0.7; // 70%
+
+        const totalCashBack = invoiceAmount * cashBackRate;
+        const membersShares = totalCashBack * memberShareRate;
+        const adminFee = membersShares * adminFeeRate;
+        const netMembersShares = membersShares - adminFee;
+
+        const eligibleMembers = getEligibleMembers(invoicedMember);
+        assignShares(eligibleMembers);
+
+        const totalUnits = eligibleMembers.reduce(
+          (sum, member) => sum + member.share * 10,
+          0
+        );
+        const valuePerUnit = netMembersShares / totalUnits;
+
+        let distributedAmount = 0;
+        const results = eligibleMembers.map((member) => {
+          const amount = parseFloat(
+            (valuePerUnit * member.share * 10).toFixed(2)
+          );
+          const totalAmount = amount + member.initialAmount;
+          distributedAmount += amount;
+          return { ...member, amount, totalAmount };
+        });
+
+        const systemShare = parseFloat(
+          (totalCashBack - distributedAmount).toFixed(2)
+        );
+
+        displayResults(
+          invoiceAmount,
+          totalCashBack,
+          adminFee,
+          netMembersShares,
+          results,
+          systemShare,
+          invoicedMember,
+          cashBackRate
+        );
+        generateTreeDiagram(results, invoicedMember);
+      }
+
+      function getEligibleMembers(invoicedMember) {
+        const eligibleMembers = [];
+        let currentMember = members.find((m) => m.name === invoicedMember);
+
+        while (currentMember && eligibleMembers.length < 6) {
+          eligibleMembers.unshift({
+            ...currentMember,
+            level: eligibleMembers.length,
+          });
+          currentMember = members.find((m) => m.name === currentMember.parent);
+        }
+
+        return eligibleMembers;
+      }
+
+      function assignShares(eligibleMembers) {
+        eligibleMembers.forEach((member) => {
+          if (member.level === 1) {
+            // Only the member at level 2 gets 20%
+            member.share = 0.2;
+          } else {
+            // All other members get 10%
+            member.share = 0.1;
+          }
+        });
+      }
+
+      function displayResults(
+        invoiceAmount,
+        totalCashBack,
+        adminFee,
+        netMembersShares,
+        results,
+        systemShare,
+        invoicedMember,
+        cashBackRate
+      ) {
+        let html = `
+          <h2 class="text-2xl font-semibold mb-4">Results for ${invoicedMember}</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-6">
+            <p><span class="font-semibold">Invoice Amount:</span> $${invoiceAmount.toFixed(
+              2
+            )}</p>
+            <p><span class="font-semibold">Vendor Cash Back Rate:</span> ${(
+              cashBackRate * 100
+            ).toFixed(1)}%</p>
+            <p><span class="font-semibold">Total Cash Back:</span> $${totalCashBack.toFixed(
+              2
+            )}</p>
+            <p><span class="font-semibold">Admin Fee:</span> $${adminFee.toFixed(
+              2
+            )}</p>
+            <p><span class="font-semibold">Net Members' Shares:</span> $${netMembersShares.toFixed(
+              2
+            )}</p>
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Member Allocations</h3>
+          <div class="overflow-x-auto">
+            <table class="w-full table-auto">
+              <thead>
+                <tr class="bg-gray-100 dark:bg-gray-700">
+                  <th class="px-4 py-2 text-left">Member</th>
+                  <th class="px-4 py-2 text-left">Level</th>
+                  <th class="px-4 py-2 text-left">Parent</th>
+                  <th class="px-4 py-2 text-left">Share</th>
+                  <th class="px-4 py-2 text-left">Initial Amount</th>
+                  <th class="px-4 py-2 text-left">Earned Amount</th>
+                  <th class="px-4 py-2 text-left">Total Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+        `;
+
+        results.forEach((member) => {
+          html += `
+            <tr class="dark:bg-gray-800">
+              <td class="border border-gray-200 dark:border-gray-700 px-4 py-2">${
+                member.name
+              }</td>
+              <td class="border border-gray-200 dark:border-gray-700 px-4 py-2">${
+                member.level
+              }</td>
+              <td class="border border-gray-200 dark:border-gray-700 px-4 py-2">${
+                member.parent || "None"
+              }</td>
+              <td class="border border-gray-200 dark:border-gray-700 px-4 py-2">${
+                member.share * 100
+              }%</td>
+              <td class="border border-gray-200 dark:border-gray-700 px-4 py-2">$${member.initialAmount.toFixed(
+                2
+              )}</td>
+              <td class="border border-gray-200 dark:border-gray-700 px-4 py-2">$${member.amount.toFixed(
+                2
+              )}</td>
+              <td class="border border-gray-200 dark:border-gray-700 px-4 py-2">$${member.totalAmount.toFixed(
+                2
+              )}</td>
+            </tr>
+          `;
+        });
+
+        html += `
+              </tbody>
+            </table>
+          </div>
+          <p class="mt-4"><span class="font-semibold">System's Share:</span> $${systemShare.toFixed(
+            2
+          )}</p>
+        `;
+
+        const resultsDiv = document.getElementById("results");
+        resultsDiv.innerHTML = html;
+        resultsDiv.classList.remove("hidden");
+      }
+
+      function generateTreeDiagram(results, invoicedMember) {
+        const treeChart = document.getElementById("treeChart");
+        treeChart.innerHTML = "";
+
+        const tree = document.createElement("div");
+        tree.className = "flex flex-col items-center";
+
+        results.forEach((member, index) => {
+          const node = document.createElement("div");
+          node.className =
+            "bg-gray-100 dark:bg-gray-700 rounded-lg p-4 mb-4 text-center";
+          if (member.name === invoicedMember) {
+            node.classList.add("bg-indigo-100", "dark:bg-indigo-900");
+          }
+          if (member.name === "M1") {
+            node.classList.add("font-bold");
+          }
+          node.innerHTML = `
+            <p class="font-semibold">${member.name}</p>
+            <p>Level: ${member.level}</p>
+            <p>Parent: ${member.parent || "None"}</p>
+            <p>Share: ${member.share * 100}%</p>
+            <p>Initial: $${member.initialAmount.toFixed(2)}</p>
+            <p>Earned: $${member.amount.toFixed(2)}</p>
+            <p>Total: $${member.totalAmount.toFixed(2)}</p>
+          `;
+          tree.appendChild(node);
+
+          if (index < results.length - 1) {
+            const link = document.createElement("div");
+            link.className = "w-px h-8 bg-gray-400 dark:bg-gray-600";
+            tree.appendChild(link);
+          }
+        });
+
+        treeChart.appendChild(tree);
+      }
+
+      // Add dark mode toggle functionality
+      const darkModeToggle = document.getElementById("darkModeToggle");
+      const html = document.documentElement;
+
+      darkModeToggle.addEventListener("click", () => {
+        html.classList.toggle("dark");
+      });
+    </script>
+  </body>
+</html>
